@@ -10,22 +10,25 @@ LANGUAGE SUPPORT:
 - Use Hinglish (Hindi-English mix) when appropriate
 - Always use ₹ symbol for rupees
 
-Your capabilities:
-- Log expenses and income to Google Sheets
-- Answer questions about spending patterns
-- Provide financial insights and advice
-- Use natural, friendly conversation
+Your job is to CONVERSATIONALLY collect expense or income information and then provide it in a structured format.
+
+IMPORTANT: You do NOT log anything directly. You only collect information and return it in JSON format when complete.
 
 When user mentions an expense/income:
-1. Extract: amount, category, description, payment mode, need/want
-2. IMPORTANT: If ANY required field is missing, ask conversationally for it IN THE SAME LANGUAGE the user is speaking:
+1. Extract: amount, category, description, payment mode, need/want (for expenses) OR source, receivedIn, receivedFrom (for income)
+2. If ANY required field is missing, ask conversationally for it IN THE SAME LANGUAGE the user is speaking:
    - Missing amount: "Kitna tha?" / "How much was it?"
    - Missing category: "Kis category mein dalu? Jaise food, transport, ya kuch aur?" / "What category? Like food, transportation?"
    - Missing description: "Isko kya naam du?" / "What should I call this?"
    - Missing payment mode: "Kaise pay kiya? Cash, UPI, card?" / "How did you pay? Cash, UPI, card?"
-3. Only after ALL fields are collected, confirm: "Theek hai, ₹500 lunch ke liye Food & Dining mein, UPI se paid. Log karu?" / "Alright, logging ₹500 for lunch at Food & Dining paid by UPI. Correct?"
-4. Call the function only when user confirms (yes/haan/thik hai/sahi hai/ok/okay)
-5. Confirm success: "Ho gaya! Expense log kar diya." / "Done! Expense logged."
+3. When ALL required fields are collected, say: "Perfect! I've collected all the details. Let me fill the form for you."
+4. Then IMMEDIATELY provide the data in this EXACT JSON format (no other text, just the JSON):
+
+For EXPENSE:
+{"type":"expense","amount":500,"category":"FOOD & DINING","description":"Lunch","paymentMode":"UPI","needWant":"NEED"}
+
+For INCOME:
+{"type":"income","amount":10000,"source":"COMPANY","receivedIn":"Bank Transfer","receivedFrom":"Company Name"}
 
 REQUIRED FIELDS for expenses: amount, category, description, paymentMode
 REQUIRED FIELDS for income: amount, source, receivedIn, receivedFrom
@@ -34,88 +37,12 @@ AVAILABLE CATEGORIES: ${EXPENSE_CATEGORIES.join(', ')}
 AVAILABLE PAYMENT MODES: ${PAYMENT_MODES.join(', ')}
 AVAILABLE INCOME SOURCES: ${INCOME_SOURCES.join(', ')}
 
-Always ask for missing fields before attempting to log. Be patient and conversational. Match the user's language preference.
-Keep responses concise - this is voice, not text.`;
+Be patient and conversational. Match the user's language preference.
+Keep responses concise - this is voice, not text.
+When you have all fields, return ONLY the JSON, nothing else.`;
 
-// Function definitions for OpenAI tool calling
-export const VOICE_ASSISTANT_TOOLS = [
-  {
-    type: 'function' as const,
-    name: 'log_expense',
-    description: 'Log an expense to the tracker. Only call this when ALL required fields are collected AND user has confirmed.',
-    parameters: {
-      type: 'object',
-      properties: {
-        amount: {
-          type: 'number',
-          description: 'The expense amount in rupees (INR)',
-        },
-        category: {
-          type: 'string',
-          enum: [...EXPENSE_CATEGORIES],
-          description: 'The expense category',
-        },
-        description: {
-          type: 'string',
-          description: 'Brief description of the expense',
-        },
-        paymentMode: {
-          type: 'string',
-          enum: [...PAYMENT_MODES],
-          description: 'How the payment was made',
-        },
-        needWant: {
-          type: 'string',
-          enum: ['NEED', 'WANT'],
-          description: 'Whether this is a need or want. Default to NEED if not specified.',
-        },
-      },
-      required: ['amount', 'category', 'description', 'paymentMode'],
-    },
-  },
-  {
-    type: 'function' as const,
-    name: 'log_income',
-    description: 'Log an income entry to the tracker. Only call this when ALL required fields are collected AND user has confirmed.',
-    parameters: {
-      type: 'object',
-      properties: {
-        amount: {
-          type: 'number',
-          description: 'The income amount in rupees (INR)',
-        },
-        source: {
-          type: 'string',
-          enum: [...INCOME_SOURCES],
-          description: 'The source of income',
-        },
-        receivedIn: {
-          type: 'string',
-          description: 'Account or method where income was received (e.g., Bank Transfer, Cash)',
-        },
-        receivedFrom: {
-          type: 'string',
-          description: 'Who the income was received from',
-        },
-        notes: {
-          type: 'string',
-          description: 'Optional notes about the income',
-        },
-      },
-      required: ['amount', 'source', 'receivedIn', 'receivedFrom'],
-    },
-  },
-  {
-    type: 'function' as const,
-    name: 'get_today_summary',
-    description: 'Get a summary of today\'s expenses and income',
-    parameters: {
-      type: 'object',
-      properties: {},
-      required: [],
-    },
-  },
-];
+// No function calling - AI will return JSON in text response
+export const VOICE_ASSISTANT_TOOLS: never[] = [];
 
 // OpenAI Realtime API event types
 export interface RealtimeEvent {
@@ -159,7 +86,7 @@ export const DEFAULT_SESSION_CONFIG: SessionConfig = {
     silence_duration_ms: 500,
   },
   tools: VOICE_ASSISTANT_TOOLS,
-  tool_choice: 'auto',
+  tool_choice: 'none', // No function calling
   temperature: 0.8,
 };
 

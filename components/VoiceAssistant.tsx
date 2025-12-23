@@ -27,6 +27,8 @@ export default function VoiceAssistant({ onCommand }: VoiceAssistantProps) {
   const playbackQueueRef = useRef<Int16Array[]>([]);
   const isPlayingRef = useRef(false);
   const configRef = useRef<{ apiKey: string; googleSheetId: string; userId: string; username: string } | null>(null);
+  const hasPopulatedFormRef = useRef(false);
+  const aiResponseRef = useRef('');
 
   // Fetch connection config from our API
   const fetchConfig = useCallback(async () => {
@@ -106,6 +108,7 @@ export default function VoiceAssistant({ onCommand }: VoiceAssistantProps) {
     }
   }, [fetchConfig]);
 
+
   // Handle events from OpenAI Realtime API
   const handleRealtimeEvent = useCallback(async (event: Record<string, unknown>) => {
     switch (event.type) {
@@ -132,11 +135,18 @@ export default function VoiceAssistant({ onCommand }: VoiceAssistantProps) {
 
       case 'response.audio_transcript.delta':
         if (typeof event.delta === 'string') {
-          setAiResponse((prev) => prev + event.delta);
+          setAiResponse((prev) => {
+            const newResponse = prev + event.delta;
+            aiResponseRef.current = newResponse;
+            // Try to parse JSON from the response
+            parseAndPopulateForm(newResponse);
+            return newResponse;
+          });
         }
         break;
 
       case 'response.audio_transcript.done':
+        // Will be handled in response.done
         break;
 
       case 'response.audio.delta':
@@ -154,20 +164,11 @@ export default function VoiceAssistant({ onCommand }: VoiceAssistantProps) {
         break;
 
       case 'response.done':
+        // Final check for JSON when response is completely done
+        parseAndPopulateForm(aiResponseRef.current);
         setAiResponse('');
+        aiResponseRef.current = '';
         break;
-
-      case 'response.function_call_arguments.done': {
-        // Handle function calls
-        const { call_id, name, arguments: args } = event as {
-          call_id: string;
-          name: string;
-          arguments: string;
-        };
-        
-        await handleFunctionCall(call_id, name, args);
-        break;
-      }
 
       case 'error':
         console.error('Realtime API error:', event);
@@ -181,58 +182,38 @@ export default function VoiceAssistant({ onCommand }: VoiceAssistantProps) {
           console.log('Unhandled event:', event.type);
         }
     }
-  }, [isMuted]);
+  }, [isMuted, parseAndPopulateForm]);
 
-  // Handle function calls from the AI
-  const handleFunctionCall = async (callId: string, functionName: string, argsString: string) => {
+  // Parse AI response for JSON and populate form
+  const parseAndPopulateForm = useCallback((responseText: string) => {
+    if (!responseText || !onCommand) return;
+
+    // Try to extract JSON from the response
+    // Look for JSON object pattern: {...}
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return;
+
     try {
-      // Call our backend to execute the function
-      const response = await fetch('/api/voice/realtime', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          functionName,
-          arguments: argsString,
-          callId,
-        }),
-      });
-
-      const data = await response.json();
+      const parsed = JSON.parse(jsonMatch[0]);
       
-      if (data.success) {
-        // Send function result back to OpenAI
-        wsRef.current?.send(JSON.stringify({
-          type: 'conversation.item.create',
-          item: {
-            type: 'function_call_output',
-            call_id: callId,
-            output: data.result,
-          },
-        }));
-
-        // Trigger response generation
-        wsRef.current?.send(JSON.stringify({
-          type: 'response.create',
-        }));
-
-        // Parse result and notify parent component
-        const result = JSON.parse(data.result);
-        if (result.success && onCommand) {
-          const args = JSON.parse(argsString);
-          onCommand(args, functionName);
-        }
-
-        if (result.success) {
-          toast.success(result.message);
-        } else {
-          toast.error(result.message);
-        }
+      // Validate it has the expected structure
+      if (parsed.type && (parsed.type === 'expense' || parsed.type === 'income')) {
+        // Populate form with the data
+        onCommand(parsed, parsed.type);
+        
+        // Show success message
+        toast.success('Form filled! Please review and click LOG EXPENSE.');
+        
+        // Close the voice assistant modal
+        setIsOpen(false);
+        setAiResponse('');
+        setTranscript('');
       }
     } catch (error) {
-      console.error('Function call error:', error);
-      toast.error('Failed to execute command');
+      // Not valid JSON yet, or not the right format - ignore
+      // The AI might still be speaking
     }
-  };
+  }, [onCommand]);
 
   // Start microphone and audio capture
   const startListening = useCallback(async () => {
@@ -281,6 +262,7 @@ export default function VoiceAssistant({ onCommand }: VoiceAssistantProps) {
       setIsListening(true);
       setTranscript('');
       setAiResponse('');
+      hasPopulatedFormRef.current = false;
     } catch (error) {
       console.error('Failed to start listening:', error);
       toast.error('Failed to access microphone');
@@ -357,6 +339,7 @@ export default function VoiceAssistant({ onCommand }: VoiceAssistantProps) {
     setIsOpen(false);
     setTranscript('');
     setAiResponse('');
+    hasPopulatedFormRef.current = false;
   }, [disconnect]);
 
   // Auto-connect when modal opens
