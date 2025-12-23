@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { appendIncome, getIncomes } from '@/lib/google-sheets';
 import { verifyToken } from '@/lib/auth';
-import { notifyIncome } from '@/lib/n8n-webhook';
+import { sendToN8n } from '@/lib/webhook';
 import { DailyIncome } from '@/lib/types';
 
 // Get all incomes
@@ -115,8 +115,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Send WhatsApp notification
-    await notifyIncome(decoded.username, income.amount, source, notes || '');
+    // Send WhatsApp notification via n8n webhook (non-blocking)
+    sendToN8n({
+      type: 'income',
+      amount: income.amount,
+      source: income.source,
+      receivedFrom: income.receivedFrom,
+      description: income.notes || '',
+      userName: decoded.username,
+      date: income.date,
+    });
 
     return NextResponse.json({ success: true, data: income });
   } catch (error) {

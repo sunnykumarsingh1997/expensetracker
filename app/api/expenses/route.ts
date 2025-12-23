@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { appendExpense, getExpenses } from '@/lib/google-sheets';
 import { verifyToken } from '@/lib/auth';
-import { notifyExpense } from '@/lib/n8n-webhook';
+import { sendToN8n } from '@/lib/webhook';
 import { DailyExpense } from '@/lib/types';
 
 // Get all expenses
@@ -115,8 +115,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Send WhatsApp notification
-    await notifyExpense(decoded.username, expense.amount, category, description);
+    // Send WhatsApp notification via n8n webhook (non-blocking)
+    sendToN8n({
+      type: 'expense',
+      amount: expense.amount,
+      category: expense.category,
+      description: expense.description,
+      userName: decoded.username,
+      date: expense.date,
+      paymentMode: expense.paymentMode,
+      needWant: expense.needWant,
+    });
 
     return NextResponse.json({ success: true, data: expense });
   } catch (error) {

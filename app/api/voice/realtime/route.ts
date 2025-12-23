@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
 import { appendExpense, appendIncome } from '@/lib/google-sheets';
+import { sendToN8n } from '@/lib/webhook';
 import {
   VOICE_ASSISTANT_TOOLS,
   VOICE_ASSISTANT_SYSTEM_PROMPT,
@@ -122,6 +123,18 @@ export async function POST(request: NextRequest) {
 
         const expenseResult = await appendExpense(expense, decoded.googleSheetId!);
         if (expenseResult.success) {
+          // Send WhatsApp notification via n8n webhook (non-blocking)
+          sendToN8n({
+            type: 'expense',
+            amount: expense.amount,
+            category: expense.category,
+            description: expense.description,
+            userName: decoded.username,
+            date: expense.date,
+            paymentMode: expense.paymentMode,
+            needWant: expense.needWant,
+          });
+
           result = {
             success: true,
             message: `Expense of ₹${args.amount} for ${args.description} logged successfully!`,
@@ -150,6 +163,17 @@ export async function POST(request: NextRequest) {
 
         const incomeResult = await appendIncome(income, decoded.googleSheetId!);
         if (incomeResult.success) {
+          // Send WhatsApp notification via n8n webhook (non-blocking)
+          sendToN8n({
+            type: 'income',
+            amount: income.amount,
+            source: income.source,
+            receivedFrom: income.receivedFrom,
+            description: income.notes || '',
+            userName: decoded.username,
+            date: income.date,
+          });
+
           result = {
             success: true,
             message: `Income of ₹${args.amount} from ${args.receivedFrom} logged successfully!`,
