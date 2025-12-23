@@ -133,11 +133,16 @@ export default function ExpensesPage() {
         });
         fetchExpenses();
       } else {
-        toast.error(data.error || 'Failed to log expense');
+        const errorMsg = data.error || 'Failed to log expense';
+        const fixHint = data.fix ? `\n\nFix: ${data.fix}` : '';
+        toast.error(errorMsg, { duration: 6000 });
+        if (data.fix) {
+          console.error('Error:', errorMsg, '\nFix:', data.fix);
+        }
       }
     } catch (error) {
       console.error('Submit error:', error);
-      toast.error('Failed to log expense');
+      toast.error('Network error - check your connection');
     } finally {
       setIsSubmitting(false);
     }

@@ -102,11 +102,15 @@ export async function POST(request: NextRequest) {
       createdAt: new Date().toISOString(),
     };
 
-    const success = await appendIncome(income, decoded.googleSheetId);
+    const result = await appendIncome(income, decoded.googleSheetId);
 
-    if (!success) {
+    if (!result.success) {
       return NextResponse.json(
-        { success: false, error: 'Failed to save income to Google Sheets' },
+        { 
+          success: false, 
+          error: result.error || 'Failed to save income to Google Sheets',
+          fix: result.fix,
+        },
         { status: 500 }
       );
     }

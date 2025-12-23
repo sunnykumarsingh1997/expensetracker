@@ -14,12 +14,33 @@ const SHEETS = {
   CUSTOM_OPTIONS: 'Custom Options',
 };
 
+// Format private key - handle various escape formats
+function formatPrivateKey(key: string | undefined): string | undefined {
+  if (!key) return undefined;
+  
+  // Handle different escape formats:
+  // 1. Literal \n strings (from env vars)
+  // 2. Double-escaped \\n (from some configs)  
+  // 3. Already proper newlines
+  let formatted = key
+    .replace(/\\\\n/g, '\n')  // Double escaped
+    .replace(/\\n/g, '\n');    // Single escaped
+  
+  // Ensure proper PEM format
+  if (!formatted.includes('-----BEGIN') && !formatted.includes('\n')) {
+    // Key might be base64 without headers - this is invalid
+    console.error('Private key appears to be malformed - missing PEM headers');
+  }
+  
+  return formatted;
+}
+
 // Get authenticated Google Sheets client
 async function getGoogleSheetsClient() {
   const auth = new google.auth.GoogleAuth({
     credentials: {
       client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-      private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+      private_key: formatPrivateKey(process.env.GOOGLE_PRIVATE_KEY),
     },
     scopes: SCOPES,
   });
@@ -44,8 +65,48 @@ function getMonthName(date: string): string {
   return d.toLocaleDateString('en-US', { month: 'long' });
 }
 
+// Helper to extract meaningful error message
+function getErrorMessage(error: any): string {
+  if (error?.response?.data?.error?.message) {
+    return error.response.data.error.message;
+  }
+  if (error?.errors?.[0]?.message) {
+    return error.errors[0].message;
+  }
+  if (error?.message) {
+    return error.message;
+  }
+  return 'Unknown error occurred';
+}
+
+// Helper to get fix suggestion based on error
+function getErrorFix(error: any): string {
+  const message = getErrorMessage(error).toLowerCase();
+  
+  if (message.includes('unable to parse range') || message.includes('not found')) {
+    return "Create the required worksheet tab in your Google Sheet";
+  }
+  if (message.includes('permission') || message.includes('403')) {
+    return `Share the Google Sheet with service account email: ${process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL}`;
+  }
+  if (message.includes('invalid_grant') || message.includes('private key')) {
+    return "Check GOOGLE_PRIVATE_KEY format - ensure newlines are escaped as \\n";
+  }
+  if (message.includes('spreadsheet not found') || message.includes('404')) {
+    return "Check if the Google Sheet ID is correct in user configuration";
+  }
+  return "Check server logs for more details";
+}
+
+// Result type for operations
+export interface OperationResult {
+  success: boolean;
+  error?: string;
+  fix?: string;
+}
+
 // EXPENSE OPERATIONS
-export async function appendExpense(expense: DailyExpense, spreadsheetId: string): Promise<boolean> {
+export async function appendExpense(expense: DailyExpense, spreadsheetId: string): Promise<OperationResult> {
   try {
     const sheets = await getGoogleSheetsClient();
 
@@ -70,10 +131,12 @@ export async function appendExpense(expense: DailyExpense, spreadsheetId: string
       requestBody: { values },
     });
 
-    return true;
-  } catch (error) {
-    console.error('Error appending expense:', error);
-    return false;
+    return { success: true };
+  } catch (error: any) {
+    const errorMessage = getErrorMessage(error);
+    const fix = getErrorFix(error);
+    console.error('Error appending expense:', errorMessage, error);
+    return { success: false, error: errorMessage, fix };
   }
 }
 
@@ -107,7 +170,7 @@ export async function getExpenses(spreadsheetId: string): Promise<DailyExpense[]
 }
 
 // INCOME OPERATIONS
-export async function appendIncome(income: DailyIncome, spreadsheetId: string): Promise<boolean> {
+export async function appendIncome(income: DailyIncome, spreadsheetId: string): Promise<OperationResult> {
   try {
     const sheets = await getGoogleSheetsClient();
 
@@ -132,10 +195,12 @@ export async function appendIncome(income: DailyIncome, spreadsheetId: string): 
       requestBody: { values },
     });
 
-    return true;
-  } catch (error) {
-    console.error('Error appending income:', error);
-    return false;
+    return { success: true };
+  } catch (error: any) {
+    const errorMessage = getErrorMessage(error);
+    const fix = getErrorFix(error);
+    console.error('Error appending income:', errorMessage, error);
+    return { success: false, error: errorMessage, fix };
   }
 }
 

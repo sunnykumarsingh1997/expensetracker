@@ -169,11 +169,16 @@ export default function IncomePage() {
         });
         fetchIncomes();
       } else {
-        toast.error(data.error || 'Failed to log income');
+        const errorMsg = data.error || 'Failed to log income';
+        const fixHint = data.fix ? `\n\nFix: ${data.fix}` : '';
+        toast.error(errorMsg, { duration: 6000 });
+        if (data.fix) {
+          console.error('Error:', errorMsg, '\nFix:', data.fix);
+        }
       }
     } catch (error) {
       console.error('Submit error:', error);
-      toast.error('Failed to log income');
+      toast.error('Network error - check your connection');
     } finally {
       setIsSubmitting(false);
     }
