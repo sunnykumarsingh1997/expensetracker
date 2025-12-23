@@ -1,7 +1,7 @@
 // Webhook utility to send notifications to n8n
 // This sends data to n8n which then forwards to WAHA for WhatsApp notifications
 
-const N8N_WEBHOOK_URL = process.env.N8N_WEBHOOK_URL || 'http://40.81.230.111:5678/webhook/expense-tracker';
+const N8N_WEBHOOK_URL = process.env.N8N_WEBHOOK_URL || 'https://n8n.codershive.in/webhook/expense-tracker';
 
 interface WebhookPayload {
   type: 'expense' | 'income';
