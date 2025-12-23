@@ -108,6 +108,28 @@ export default function VoiceAssistant({ onCommand }: VoiceAssistantProps) {
     }
   }, [fetchConfig]);
 
+  // Parse AI response for JSON and populate form
+  const parseAndPopulateForm = useCallback((responseText: string) => {
+    if (!responseText || !onCommand) return;
+
+    // Try to extract JSON from the response
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return;
+
+    try {
+      const parsed = JSON.parse(jsonMatch[0]);
+
+      if (parsed.type && (parsed.type === 'expense' || parsed.type === 'income')) {
+        onCommand(parsed, parsed.type);
+        toast.success('Form filled! Please review and click LOG EXPENSE.');
+        setIsOpen(false);
+        setAiResponse('');
+        setTranscript('');
+      }
+    } catch {
+      // Not valid JSON yet - ignore
+    }
+  }, [onCommand]);
 
   // Handle events from OpenAI Realtime API
   const handleRealtimeEvent = useCallback(async (event: Record<string, unknown>) => {
@@ -183,37 +205,6 @@ export default function VoiceAssistant({ onCommand }: VoiceAssistantProps) {
         }
     }
   }, [isMuted, parseAndPopulateForm]);
-
-  // Parse AI response for JSON and populate form
-  const parseAndPopulateForm = useCallback((responseText: string) => {
-    if (!responseText || !onCommand) return;
-
-    // Try to extract JSON from the response
-    // Look for JSON object pattern: {...}
-    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) return;
-
-    try {
-      const parsed = JSON.parse(jsonMatch[0]);
-      
-      // Validate it has the expected structure
-      if (parsed.type && (parsed.type === 'expense' || parsed.type === 'income')) {
-        // Populate form with the data
-        onCommand(parsed, parsed.type);
-        
-        // Show success message
-        toast.success('Form filled! Please review and click LOG EXPENSE.');
-        
-        // Close the voice assistant modal
-        setIsOpen(false);
-        setAiResponse('');
-        setTranscript('');
-      }
-    } catch (error) {
-      // Not valid JSON yet, or not the right format - ignore
-      // The AI might still be speaking
-    }
-  }, [onCommand]);
 
   // Start microphone and audio capture
   const startListening = useCallback(async () => {
