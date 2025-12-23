@@ -266,7 +266,7 @@ export default function VoiceAssistant({ onCommand }: VoiceAssistantProps) {
         if (wsRef.current?.readyState === WebSocket.OPEN && isListening) {
           const inputData = e.inputBuffer.getChannelData(0);
           const pcm16 = float32ToPcm16(inputData);
-          const base64 = arrayBufferToBase64(pcm16.buffer);
+          const base64 = arrayBufferToBase64(pcm16.buffer as ArrayBuffer);
 
           wsRef.current.send(JSON.stringify({
             type: 'input_audio_buffer.append',
