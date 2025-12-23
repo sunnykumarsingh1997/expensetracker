@@ -1,0 +1,286 @@
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --hitman-red: #C41E3A;
+  --hitman-dark-red: #8B0000;
+  --hitman-black: #0D0D0D;
+  --hitman-charcoal: #1A1A1A;
+  --hitman-gunmetal: #2C3539;
+  --hitman-silver: #C0C0C0;
+  --hitman-gold: #D4AF37;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  min-height: 100vh;
+}
+
+/* Dark mode (default - Hitman style) */
+body.dark {
+  background: linear-gradient(135deg, #0D0D0D 0%, #1A1A1A 50%, #2C3539 100%);
+  color: #F5F5F5;
+}
+
+/* Light mode */
+body.light {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 50%, #dee2e6 100%);
+  color: #1A1A1A;
+}
+
+/* Hitman-style scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1A1A1A;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #C41E3A;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #8B0000;
+}
+
+/* Netflix-style input focus */
+.netflix-input {
+  @apply w-full px-4 py-4 text-lg bg-gray-800/50 border border-gray-600 rounded-md
+         text-white placeholder-gray-400 transition-all duration-300
+         focus:outline-none focus:border-hitman-red focus:ring-2 focus:ring-hitman-red/30;
+}
+
+.light .netflix-input {
+  @apply bg-white/80 border-gray-300 text-gray-900 placeholder-gray-500
+         focus:border-hitman-red;
+}
+
+/* Hitman-style buttons */
+.hitman-btn {
+  @apply relative overflow-hidden px-8 py-4 text-lg font-semibold uppercase tracking-wider
+         bg-hitman-red text-white rounded-md transition-all duration-300
+         hover:bg-hitman-darkRed hover:shadow-lg hover:shadow-hitman-red/30
+         active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+.hitman-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+  transition: left 0.5s;
+}
+
+.hitman-btn:hover::before {
+  left: 100%;
+}
+
+/* Card styles */
+.agent-card {
+  @apply relative bg-hitman-charcoal/80 backdrop-blur-sm border border-hitman-gunmetal
+         rounded-xl p-6 transition-all duration-300 hover:border-hitman-red/50
+         hover:shadow-lg hover:shadow-hitman-red/20;
+}
+
+.light .agent-card {
+  @apply bg-white/90 border-gray-200 hover:border-hitman-red/50;
+}
+
+/* Stat card glow effect */
+.stat-card {
+  @apply relative p-6 rounded-xl overflow-hidden;
+  background: linear-gradient(145deg, #1A1A1A 0%, #2C3539 100%);
+  border: 1px solid rgba(196, 30, 58, 0.3);
+}
+
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #C41E3A, transparent);
+}
+
+.light .stat-card {
+  background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%);
+}
+
+/* Mobile-optimized big buttons */
+.mobile-btn {
+  @apply w-full min-h-[60px] text-xl font-bold flex items-center justify-center gap-3
+         rounded-xl transition-all duration-200 active:scale-95;
+}
+
+/* Agent badge */
+.agent-badge {
+  @apply inline-flex items-center px-3 py-1 rounded-full text-sm font-medium
+         bg-hitman-red/20 text-hitman-red border border-hitman-red/30;
+}
+
+/* Crosshair decoration */
+.crosshair::before,
+.crosshair::after {
+  content: '';
+  position: absolute;
+  background: #C41E3A;
+}
+
+.crosshair::before {
+  width: 20px;
+  height: 2px;
+  top: 50%;
+  left: -10px;
+  transform: translateY(-50%);
+}
+
+.crosshair::after {
+  width: 2px;
+  height: 20px;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+/* Target animation */
+@keyframes target-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(196, 30, 58, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 15px rgba(196, 30, 58, 0);
+  }
+}
+
+.target-pulse {
+  animation: target-pulse 2s infinite;
+}
+
+/* Loading spinner */
+.hitman-spinner {
+  width: 50px;
+  height: 50px;
+  border: 3px solid #2C3539;
+  border-top-color: #C41E3A;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Voice wave animation */
+.voice-wave {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 30px;
+}
+
+.voice-wave span {
+  width: 4px;
+  background: #C41E3A;
+  border-radius: 2px;
+  animation: wave 1s ease-in-out infinite;
+}
+
+.voice-wave span:nth-child(1) { animation-delay: 0s; }
+.voice-wave span:nth-child(2) { animation-delay: 0.1s; }
+.voice-wave span:nth-child(3) { animation-delay: 0.2s; }
+.voice-wave span:nth-child(4) { animation-delay: 0.3s; }
+.voice-wave span:nth-child(5) { animation-delay: 0.4s; }
+
+@keyframes wave {
+  0%, 100% { height: 10px; }
+  50% { height: 30px; }
+}
+
+/* Need vs Want indicators */
+.need-indicator {
+  @apply bg-green-500/20 text-green-400 border-green-500/30;
+}
+
+.want-indicator {
+  @apply bg-yellow-500/20 text-yellow-400 border-yellow-500/30;
+}
+
+/* Table styles */
+.agent-table {
+  @apply w-full border-collapse;
+}
+
+.agent-table th {
+  @apply px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider
+         text-hitman-silver border-b border-hitman-gunmetal bg-hitman-black/50;
+}
+
+.agent-table td {
+  @apply px-4 py-3 text-sm border-b border-hitman-gunmetal/50;
+}
+
+.agent-table tbody tr {
+  @apply transition-colors hover:bg-hitman-red/10;
+}
+
+.light .agent-table th {
+  @apply text-gray-600 border-gray-200 bg-gray-50;
+}
+
+.light .agent-table td {
+  @apply border-gray-100;
+}
+
+/* File upload zone */
+.upload-zone {
+  @apply border-2 border-dashed border-hitman-gunmetal rounded-xl p-8
+         text-center transition-all duration-300 cursor-pointer
+         hover:border-hitman-red hover:bg-hitman-red/5;
+}
+
+.upload-zone.dragover {
+  @apply border-hitman-red bg-hitman-red/10;
+}
+
+/* Charts */
+.chart-container {
+  @apply bg-hitman-charcoal/50 rounded-xl p-4 border border-hitman-gunmetal;
+}
+
+.light .chart-container {
+  @apply bg-white/80 border-gray-200;
+}
+
+/* Notification toast */
+.toast-success {
+  background: linear-gradient(135deg, #1A1A1A 0%, #2C3539 100%) !important;
+  border-left: 4px solid #10B981 !important;
+}
+
+.toast-error {
+  background: linear-gradient(135deg, #1A1A1A 0%, #2C3539 100%) !important;
+  border-left: 4px solid #C41E3A !important;
+}

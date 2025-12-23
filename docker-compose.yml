@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  agent-expense-tracker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: agent-expense-tracker
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - GOOGLE_SHEETS_ID=${GOOGLE_SHEETS_ID}
+      - GOOGLE_SERVICE_ACCOUNT_EMAIL=${GOOGLE_SERVICE_ACCOUNT_EMAIL}
+      - GOOGLE_PRIVATE_KEY=${GOOGLE_PRIVATE_KEY}
+      - JWT_SECRET=${JWT_SECRET}
+      - PAPERLESS_URL=${PAPERLESS_URL}
+      - PAPERLESS_TOKEN=${PAPERLESS_TOKEN}
+      - N8N_WEBHOOK_URL=${N8N_WEBHOOK_URL}
+      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
+    volumes:
+      - ./data:/app/data
+    networks:
+      - expense-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.expense-tracker.rule=Host(`exp.codershive.in`)"
+      - "traefik.http.routers.expense-tracker.entrypoints=websecure"
+      - "traefik.http.routers.expense-tracker.tls.certresolver=letsencrypt"
+      - "traefik.http.services.expense-tracker.loadbalancer.server.port=3000"
+
+networks:
+  expense-network:
+    external: true
