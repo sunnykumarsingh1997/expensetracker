@@ -9,6 +9,7 @@ import {
   Menu,
   X,
   LayoutDashboard,
+  Clock,
   CreditCard,
   DollarSign,
   Wallet,
@@ -22,6 +23,7 @@ import { useAuthStore, useThemeStore } from '@/lib/store';
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/time-log', label: 'Time Log', icon: Clock },
   { href: '/expenses', label: 'Expenses', icon: CreditCard },
   { href: '/income', label: 'Income', icon: DollarSign },
   { href: '/balance', label: 'Balance', icon: Wallet },

@@ -1,5 +1,5 @@
 import { google } from 'googleapis';
-import { DailyExpense, DailyIncome, WeeklyBalance, BankBalanceEntry, CustomOption, CustomOptionType } from './types';
+import { DailyExpense, DailyIncome, WeeklyBalance, BankBalanceEntry, CustomOption, CustomOptionType, TimeLog } from './types';
 
 const SCOPES = ['https://www.googleapis.com/auth/spreadsheets'];
 
@@ -12,6 +12,7 @@ const SHEETS = {
   BUDGET_SETTINGS: 'Budget Settings',
   MONTHLY_SUMMARY: 'Monthly Summary',
   CUSTOM_OPTIONS: 'Custom Options',
+  DAILY_TIME_LOG: 'Daily Time Log',
 };
 
 // Format private key - handle various escape formats
@@ -589,5 +590,193 @@ export async function initializeSheets(spreadsheetId: string): Promise<boolean> 
   } catch (error) {
     console.error('Error initializing sheets:', error);
     return false;
+  }
+}
+
+// TIME LOG OPERATIONS
+// Get time logs for a specific date
+export async function getTimeLogs(spreadsheetId: string, agentName: string, date: string): Promise<TimeLog[]> {
+  try {
+    const sheets = await getGoogleSheetsClient();
+
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `'${SHEETS.DAILY_TIME_LOG}'!A2:G`,
+    });
+
+    const rows = response.data.values || [];
+    const formattedDate = formatDate(date);
+
+    return rows
+      .map((row, index) => ({
+        id: row[0] || `tl-${index}`,
+        date: row[1] || '',
+        agentName: row[2] || '',
+        timeSlot: row[3] || '',
+        activity: row[4] || '',
+        category: row[5] || '',
+        isSubmitted: row[6] === 'TRUE' || row[6] === 'true',
+        userId: '',
+      }))
+      .filter(log => log.date === formattedDate && log.agentName === agentName);
+  } catch (error) {
+    console.error('Error fetching time logs:', error);
+    return [];
+  }
+}
+
+// Get time logs for a date range (history)
+export async function getTimeLogsHistory(
+  spreadsheetId: string,
+  agentName: string,
+  startDate: string,
+  endDate: string
+): Promise<TimeLog[]> {
+  try {
+    const sheets = await getGoogleSheetsClient();
+
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `'${SHEETS.DAILY_TIME_LOG}'!A2:G`,
+    });
+
+    const rows = response.data.values || [];
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
+    return rows
+      .map((row, index) => ({
+        id: row[0] || `tl-${index}`,
+        date: row[1] || '',
+        agentName: row[2] || '',
+        timeSlot: row[3] || '',
+        activity: row[4] || '',
+        category: row[5] || '',
+        isSubmitted: row[6] === 'TRUE' || row[6] === 'true',
+        userId: '',
+      }))
+      .filter(log => {
+        if (log.agentName !== agentName) return false;
+        // Parse the date (DD/MM/YYYY format)
+        const parts = log.date.split('/');
+        if (parts.length !== 3) return false;
+        const logDate = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+        return logDate >= start && logDate <= end;
+      });
+  } catch (error) {
+    console.error('Error fetching time logs history:', error);
+    return [];
+  }
+}
+
+// Upsert (create or update) a time log entry
+export async function upsertTimeLog(log: TimeLog, spreadsheetId: string): Promise<OperationResult> {
+  try {
+    const sheets = await getGoogleSheetsClient();
+    const formattedDate = formatDate(log.date);
+
+    // First, find if this slot already exists
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `'${SHEETS.DAILY_TIME_LOG}'!A:G`,
+    });
+
+    const rows = response.data.values || [];
+    let rowIndex = -1;
+
+    for (let i = 1; i < rows.length; i++) {
+      if (
+        rows[i][1] === formattedDate &&
+        rows[i][2] === log.agentName &&
+        rows[i][3] === log.timeSlot
+      ) {
+        rowIndex = i + 1;
+        break;
+      }
+    }
+
+    const values = [
+      [
+        log.id,
+        formattedDate,
+        log.agentName,
+        log.timeSlot,
+        log.activity,
+        log.category,
+        log.isSubmitted ? 'TRUE' : 'FALSE',
+      ],
+    ];
+
+    if (rowIndex > 0) {
+      // Update existing row
+      await sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: `'${SHEETS.DAILY_TIME_LOG}'!A${rowIndex}:G${rowIndex}`,
+        valueInputOption: 'USER_ENTERED',
+        requestBody: { values },
+      });
+    } else {
+      // Append new row
+      await sheets.spreadsheets.values.append({
+        spreadsheetId,
+        range: `'${SHEETS.DAILY_TIME_LOG}'!A:G`,
+        valueInputOption: 'USER_ENTERED',
+        insertDataOption: 'INSERT_ROWS',
+        requestBody: { values },
+      });
+    }
+
+    return { success: true };
+  } catch (error: unknown) {
+    const errorMessage = getErrorMessage(error);
+    const fix = getErrorFix(error);
+    console.error('Error upserting time log:', errorMessage, error);
+    return { success: false, error: errorMessage, fix };
+  }
+}
+
+// Submit all time logs for a day (mark as submitted)
+export async function submitDayLogs(
+  spreadsheetId: string,
+  agentName: string,
+  date: string
+): Promise<OperationResult> {
+  try {
+    const sheets = await getGoogleSheetsClient();
+    const formattedDate = formatDate(date);
+
+    // Get all rows to find matching ones
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `'${SHEETS.DAILY_TIME_LOG}'!A:G`,
+    });
+
+    const rows = response.data.values || [];
+    const updates: { range: string; values: string[][] }[] = [];
+
+    for (let i = 1; i < rows.length; i++) {
+      if (rows[i][1] === formattedDate && rows[i][2] === agentName) {
+        updates.push({
+          range: `'${SHEETS.DAILY_TIME_LOG}'!G${i + 1}`,
+          values: [['TRUE']],
+        });
+      }
+    }
+
+    if (updates.length > 0) {
+      await sheets.spreadsheets.values.batchUpdate({
+        spreadsheetId,
+        requestBody: {
+          valueInputOption: 'USER_ENTERED',
+          data: updates,
+        },
+      });
+    }
+
+    return { success: true };
+  } catch (error: unknown) {
+    const errorMessage = getErrorMessage(error);
+    console.error('Error submitting day logs:', errorMessage, error);
+    return { success: false, error: errorMessage };
   }
 }

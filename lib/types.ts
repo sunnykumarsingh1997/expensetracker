@@ -262,3 +262,52 @@ export interface FormState {
   isSuccess: boolean;
   error: string | null;
 }
+
+// Time Log Types
+export interface TimeLog {
+  id: string;
+  date: string;
+  agentName: string;
+  timeSlot: string; // "09:00 - 10:00"
+  activity: string;
+  category: string;
+  userId: string;
+  isSubmitted?: boolean;
+  createdAt?: string;
+}
+
+export interface TimeLogSettings {
+  agentName: string;
+  startHour: string; // "09:00"
+  endHour: string; // "18:00"
+  slotDuration: number; // 60 minutes
+}
+
+export interface DayCompletionStatus {
+  date: string;
+  totalSlots: number;
+  filledSlots: number;
+  isComplete: boolean;
+  isSubmitted: boolean;
+}
+
+export const TIME_LOG_CATEGORIES = [
+  'OFFICE',
+  'TRAVEL',
+  'CLIENT_MEETING',
+  'INSTALLATION',
+  'TRAINING',
+  'DOCUMENTATION',
+  'LUNCH_BREAK',
+  'PLANNING',
+  'OTHER',
+] as const;
+
+export type TimeLogCategory = typeof TIME_LOG_CATEGORIES[number];
+
+export const DEFAULT_TIME_LOG_SETTINGS: TimeLogSettings = {
+  agentName: '',
+  startHour: '09:00',
+  endHour: '18:00',
+  slotDuration: 60,
+};
