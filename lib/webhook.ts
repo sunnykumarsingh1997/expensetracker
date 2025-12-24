@@ -22,22 +22,25 @@ interface WebhookPayload {
  * to avoid slowing down the user experience
  */
 export async function sendToN8n(payload: WebhookPayload): Promise<void> {
-  // Don't block if webhook URL is not configured
-  if (!process.env.N8N_WEBHOOK_URL) {
-    console.warn('N8N_WEBHOOK_URL not configured, skipping webhook notification');
-    return;
-  }
-
   // Fire and forget - don't await to avoid blocking the response
+  // Uses fallback URL if env var not set
   fetch(N8N_WEBHOOK_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(payload),
-  }).catch((error) => {
-    // Silently log errors - webhook failures shouldn't break the app
-    console.error('Failed to send webhook notification:', error);
-  });
+  })
+    .then((response) => {
+      if (!response.ok) {
+        console.error('Webhook response not ok:', response.status);
+      } else {
+        console.log('Webhook sent successfully');
+      }
+    })
+    .catch((error) => {
+      // Silently log errors - webhook failures shouldn't break the app
+      console.error('Failed to send webhook notification:', error);
+    });
 }
 
